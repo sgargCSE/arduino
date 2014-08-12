@@ -1,3 +1,5 @@
+#include <EEPROM.h>
+
 #define trigPin 12
 #define echoPin 11
 #define light 10
@@ -6,8 +8,8 @@
 #define DIST 200
 
 int global;
-int numbers[10][7] = 
-{ { 1,1,1,1,1,1,0 }, // = 0
+int numbers[11][7] = { 
+{ 1,1,1,1,1,1,0 }, // = 0
 { 0,1,1,0,0,0,0 }, // = 1
 { 1,1,0,1,1,0,1 }, // = 2
 { 1,1,1,1,0,0,1 }, // = 3
@@ -16,7 +18,11 @@ int numbers[10][7] =
 { 1,0,1,1,1,1,1 }, // = 6
 { 1,1,1,0,0,0,0 }, // = 7
 { 1,1,1,1,1,1,1 }, // = 8
-{ 1,1,1,0,0,1,1 }}; // = 9
+{ 1,1,1,0,0,1,1 }, // = 9
+{ 0,0,1,1,1,1,1 }  // = E
+}; 
+
+int zeros;
 
 void setup() {
     Serial.begin (9600);
@@ -29,7 +35,15 @@ void setup() {
       pinMode(i,OUTPUT);
     }
     global = 0;
+    zeros = 0;
+    
+    Serial.print("total number of zeroes read = ");
+//    EEPROM.write(0,0);
+    int rr = EEPROM.read(0);
+    Serial.println(rr);
+    delay(1000);
 }
+
 
 void loop() {
     
@@ -44,6 +58,7 @@ void loop() {
       //remeasurement
       distance = getDistance(); 
     }
+    
     if (distance < DIST) {        
         global++;
         Serial.print(" <150cm trigger, on for 60 seconds(");
@@ -80,7 +95,6 @@ void loop() {
     }
     digitalWrite(light,LOW);
     
-
     //write this out to the 7seg display
     int j;
     for (j=2;j<9;j++){
@@ -90,7 +104,19 @@ void loop() {
          digitalWrite(j,LOW); 
       }
     }
-    delay(250); // delay 250ms
+    
+    if (zeros >= 6){
+       digitalWrite(light, LOW);
+       //permanent stall mode
+       while (1==1){
+          digitalWrite(led, LOW);
+          delay(1000);  
+          digitalWrite(led, HIGH);
+          delay(1000);
+       }
+    }
+    
+    delay(125); // delay 250ms
 }
 
 int getDistance(){
@@ -102,5 +128,11 @@ int getDistance(){
     digitalWrite(trigPin, LOW);
     duration = pulseIn(echoPin, HIGH);
     distance = duration / 58;
+    
+    if (distance == 0) {
+       zeros++;
+       EEPROM.write(0,EEPROM.read(0)+1);
+    }
+    
     return distance;
 }
