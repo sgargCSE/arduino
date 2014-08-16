@@ -6,6 +6,7 @@
 #define led 13
 
 #define DIST 200
+#define LIGHT_VAL 380
 
 int global;
 int numbers[11][7] = { 
@@ -34,9 +35,6 @@ void setup() {
     pinMode(light, OUTPUT);
     pinMode(led, OUTPUT);
     int i = 0;
-    for (i=2;i<9;i++) {
-      pinMode(i,OUTPUT);
-    }
     global = 0;
     zeros = 0;
         
@@ -60,25 +58,35 @@ void setup() {
     pinMode(LATCHpin, OUTPUT);
     pinMode(DATApin, OUTPUT);
 
-    cli();
-    //set timer1 interrupt at 10Hz
-    TCCR1A = 0;// set entire TCCR1A register to 0
-    TCCR1B = 0;// same for TCCR1B
-    TCNT1  = 0;//initialize counter value to 0
-    // set compare match register for 1hz increments
-    OCR1A = 157;// = (16*10^6) / (1*1024) - 1 (must be <65536)
-    // turn on CTC mode
-    TCCR1A |= (1 << WGM12);
-    // Set CS10 and CS12 bits for 1024 prescaler
-    TCCR1B |= (1 << CS12) | (1 << CS10);  
-    // enable timer compare interrupt
-    TIMSK1 |= (1 << OCIE1A);
+    for (i=5;i<9;i++) {
+      pinMode(i,OUTPUT);
+    }
+    
+  delay(1000);
+    
+  cli();
 
-    sei();
+  //set timer0 interrupt at 2kHz
+  TCCR2A = 0;// set entire TCCR0A register to 0
+  TCCR2B = 0;// same for TCCR0B
+  TCNT2  = 0;//initialize counter value to 0
+  // set compare match register for 2khz increments
+  OCR2A = 200;// = (16*10^6) / (2000*64) - 1 (must be <256)
+  // turn on CTC mode
+  TCCR2A |= (1 << WGM21);
+  // Set CS01 and CS00 bits for 64 prescaler
+  TCCR2B |= (1 << CS22) | (1 << CS20);   
+  // enable timer compare interrupt
+  TIMSK2 |= (1 << OCIE2A);
 
-    delay(1000);
+
+  sei();
+
 }
 
+int dist_cpy;
+char glb = 0;
+int outputValue = 0;
 
 void loop() {
 
@@ -94,7 +102,7 @@ void loop() {
         distance = getDistance(); 
     }
 
-    if (distance < DIST) {        
+    if (distance < DIST && outputValue < LIGHT_VAL) {        
         global++;
         Serial.print(" <150cm trigger, on for 60 seconds(");
         Serial.print(global);
@@ -140,50 +148,68 @@ void loop() {
         }
     }
     int j;
-    for (j=0;j<4;j++){
-        digits[j] = distance % 10;
-        distance = distance / 10;
+    
+    // read the analog in value:
+    int sensorValue = analogRead(A0);            
+    // map it to the range of the analog out:
+    outputValue = sensorValue;
+    
+    glb++;
+    if (glb == 16){
+        dist_cpy = outputValue;
+        glb = 0;
     }
+    int tmp = dist_cpy;    
+    for (j=0;j<4;j++){
+        digits[j] = dist_cpy % 10;
+        dist_cpy = dist_cpy / 10;
+        Serial.print(digits[j]);
+        Serial.print(" ");
+    }
+    dist_cpy = tmp;
+    Serial.println("-----");
     delay(125); // delay 250ms
 }
 
 int getDistance(){
-    long duration, distance;
+    cli();
+    long duration, dist;
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     digitalWrite(trigPin, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
     duration = pulseIn(echoPin, HIGH);
-    distance = duration / 58;
-
-    if (distance == 0) {
+    dist = duration / 58;
+    sei();
+    if (dist == 0) {
         zeros++;
         EEPROM.write(0,EEPROM.read(0)+1);
     }
 
-    return distance;
+    return dist;
+}
+
+char digitUpTo = 3;
+int digitPins[4] = {5,6,7,8};
+
+ISR(TIMER2_COMPA_vect){
+
+    digitalWrite(digitPins[digitUpTo%4], LOW);
+    digitUpTo--;
+    if (digitUpTo== -1) digitUpTo = 3;
+    digitalWrite(digitPins[digitUpTo%4], HIGH);
+    writeShiftReg(numbers[digits[digitUpTo%4]]);
 }
 
 void writeShiftReg(int *data){
     int i;
-    int writeout = 0;
+    byte writeout = 0;
 
-    for (i=0;i<8;i++){
+    for (i=0;i<7;i++){
         writeout = writeout | (data[i] << i);
     }
-
     digitalWrite(LATCHpin, LOW);
     shiftOut(DATApin, CLKpin, MSBFIRST, writeout);
     digitalWrite(LATCHpin, HIGH);
-}
-
-int digitUpTo = 0;
-int digitPins[4] = {6,7,8,9};
-
-ISR(TIMER1_COMPA_vect){//timer1 interrupt 10Hz
-    digitalWrite(digitPins[digitUpTo%4], LOW);
-    digitUpTo++;
-    digitalWrite(digitPins[digitUpTo%4], HIGH);
-    writeShiftReg(numbers[digits[digitUpTo%4]]);
 }
