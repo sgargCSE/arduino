@@ -5,7 +5,7 @@
 #define light 10
 #define led 13
 
-#define DIST 200
+#define DIST 150
 #define LIGHT_VAL 380
 
 int global;
@@ -137,15 +137,18 @@ void loop() {
         }
     }
     digitalWrite(light,LOW);
-    if (zeros >= 6){
+    if (zeros >= 10){
         digitalWrite(light, LOW);
         //permanent stall mode
-        while (1==1){
+        int i = 0;
+        while(i < (60 * 30 / 2)){
             digitalWrite(led, LOW);
             delay(1000);  
             digitalWrite(led, HIGH);
             delay(1000);
+            i++;
         }
+        zeros = 0;
     }
     int j;
     
@@ -168,7 +171,7 @@ void loop() {
     }
     dist_cpy = tmp;
     Serial.println("-----");
-    delay(125); // delay 250ms
+    delay(250); // delay 250ms
 }
 
 int getDistance(){
