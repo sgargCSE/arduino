@@ -6,7 +6,7 @@
 #define led 13
 
 #define DIST 150
-#define LIGHT_VAL 380
+#define LIGHT_VAL 500
 
 int global;
 int zeros;
@@ -36,7 +36,6 @@ void setup() {
 }
 
 int dist_cpy;
-int outputValue = 0;
 
 void loop() {
 
@@ -45,6 +44,10 @@ void loop() {
     Serial.print(distance);
     Serial.println(" cm");
 
+    int sensorValue = analogRead(A0);            
+    Serial.print("light val = ");
+    Serial.println(sensorValue);
+
     //    if (distance > 3000) global++;
     if (distance < DIST){
         delay(25);
@@ -52,7 +55,7 @@ void loop() {
         distance = getDistance(); 
     }
 
-    if (distance < DIST) { //&& outputValue < LIGHT_VAL) {        
+    if (distance < DIST && sensorValue < LIGHT_VAL) {        
         global++;
         Serial.print(" <150cm trigger, on for 60 seconds(");
         Serial.print(global);
@@ -103,11 +106,7 @@ void loop() {
     int j;
     
     // read the analog in value:
-    int sensorValue = analogRead(A0);            
-    Serial.print("light val = ");
-    Serial.println(sensorValue);
     // map it to the range of the analog out:
-    outputValue = sensorValue;
     
     delay(250); // delay 250ms
 }
